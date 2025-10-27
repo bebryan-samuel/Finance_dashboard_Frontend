@@ -1,0 +1,257 @@
+**index.html**
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Personal Finance Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="container">
+    <header class="dashboard-header">
+      <div>
+        <h1>Finance Dashboard</h1>
+        <div class="sub">Secure • Private • LocalStorage</div>
+      </div>
+      <div class="sub">Mobile-first • Touch-friendly</div>
+    </header>
+
+    <main class="dashboard-grid">
+      <section class="cards">
+        <div class="card">
+          <h3>Total Balance</h3>
+          <div class="value count" id="totalBalance">₹0</div>
+          <div class="small">Updated in real time</div>
+        </div>
+        <div class="card">
+          <h3>Monthly Income</h3>
+          <div class="value" id="monthlyIncome">₹0</div>
+        </div>
+        <div class="card">
+          <h3>Monthly Expenses</h3>
+          <div class="value text-danger" id="monthlyExpense">₹0</div>
+        </div>
+        <div class="card">
+          <h3>Investments</h3>
+          <div class="value text-success" id="investmentSum">₹0</div>
+        </div>
+      </section>
+
+      <section class="main-row">
+        <div>
+          <div class="panel">
+            <h2>Add Transaction</h2>
+            <form id="txForm" class="transaction-form" novalidate>
+              <div class="form-row">
+                <label for="title">Title</label>
+                <input id="title" name="title" type="text" placeholder="e.g., Salary, Rent" required />
+              </div>
+              <div class="form-row">
+                <label for="amount">Amount (₹)</label>
+                <input id="amount" name="amount" type="number" step="0.01" required />
+              </div>
+              <div class="form-row">
+                <label for="type">Type</label>
+                <select id="type" name="type">
+                  <option value="income">Income</option>
+                  <option value="expense">Expense</option>
+                  <option value="investment">Investment</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="category">Category</label>
+                <select id="category" name="category">
+                  <option value="salary">Salary</option>
+                  <option value="groceries">Groceries</option>
+                  <option value="rent">Rent</option>
+                  <option value="entertainment">Entertainment</option>
+                  <option value="utilities">Utilities</option>
+                  <option value="investments">Investments</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="date">Date</label>
+                <input id="date" name="date" type="date" />
+              </div>
+              <div class="buttons">
+                <button type="submit" class="btn">Add Transaction</button>
+                <button type="button" id="clearBtn" class="btn ghost">Clear All</button>
+              </div>
+            </form>
+          </div>
+
+          <div class="panel">
+            <div class="filters">
+              <select id="filterCategory">
+                <option value="all">All categories</option>
+                <option value="income">Income only</option>
+                <option value="expense">Expense only</option>
+                <option value="investment">Investment only</option>
+              </select>
+              <input id="search" placeholder="Search title" />
+            </div>
+            <table>
+              <thead>
+                <tr><th>Title</th><th>Amount</th><th>Category</th><th>Date</th><th>Type</th><th></th></tr>
+              </thead>
+              <tbody id="txTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <div class="panel charts">
+            <canvas id="pieChart"></canvas>
+            <canvas id="lineChart"></canvas>
+            <canvas id="barChart"></canvas>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
+```
+
+**styles.css**
+```css
+:root {
+  --bg: #f6f8fb;
+  --card: #fff;
+  --muted: #6b7280;
+  --accent: #2563eb;
+  --danger: #ef4444;
+  --success: #10b981;
+  --radius: 12px;
+  --shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  font-family: Inter, sans-serif;
+}
+
+.container { max-width: 1100px; margin: auto; padding: 20px; }
+.dashboard-header { display: flex; justify-content: space-between; }
+.cards { display: flex; gap: 10px; overflow: auto; }
+.card { flex: 1; background: var(--card); padding: 15px; border-radius: var(--radius); box-shadow: var(--shadow); }
+.value { font-weight: 700; font-size: 1.3rem; }
+.text-danger { color: var(--danger); }
+.text-success { color: var(--success); }
+.panel { background: var(--card); padding: 15px; border-radius: var(--radius); box-shadow: var(--shadow); margin-top: 10px; }
+.btn { background: var(--accent); color: white; border: none; border-radius: 8px; padding: 10px; cursor: pointer; }
+.btn.ghost { background: transparent; border: 1px solid #ccc; color: var(--muted); }
+.transaction-form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.form-row { display: flex; flex-direction: column; }
+input, select { padding: 10px; border-radius: 8px; border: 1px solid #ddd; }
+.charts { display: grid; grid-template-columns: 1fr; gap: 15px; }
+```
+
+**script.js**
+```javascript
+const STORAGE_KEY = 'pf_transactions_v1';
+const $ = (sel) => document.querySelector(sel);
+let transactions = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+
+const txForm = $('#txForm');
+const txTableBody = $('#txTableBody');
+const totalBalanceEl = $('#totalBalance');
+const monthlyIncomeEl = $('#monthlyIncome');
+const monthlyExpenseEl = $('#monthlyExpense');
+const investmentSumEl = $('#investmentSum');
+const filterCategory = $('#filterCategory');
+const searchInput = $('#search');
+const clearBtn = $('#clearBtn');
+
+const formatRupee = (n) => '₹' + Number(n).toLocaleString('en-IN');
+
+function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions)); }
+
+function renderTransactions() {
+  const filter = filterCategory.value;
+  const q = searchInput.value.trim().toLowerCase();
+  txTableBody.innerHTML = '';
+  const rows = transactions.filter(t => (filter === 'all' || t.type === filter) && t.title.toLowerCase().includes(q));
+  if (rows.length === 0) {
+    txTableBody.innerHTML = '<tr><td colspan="6">No transactions yet</td></tr>';
+    return;
+  }
+  rows.reverse().forEach(tx => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${tx.title}</td><td>${formatRupee(tx.amount)}</td><td>${tx.category}</td><td>${tx.date}</td><td>${tx.type}</td><td><button data-id="${tx.id}" class="btn ghost">Delete</button></td>`;
+    txTableBody.appendChild(tr);
+  });
+}
+
+function computeSummaries() {
+  let balance = 0, inc = 0, exp = 0, invest = 0;
+  transactions.forEach(t => {
+    if (t.type === 'income') { balance += t.amount; inc += t.amount; }
+    if (t.type === 'expense') { balance -= t.amount; exp += t.amount; }
+    if (t.type === 'investment') { invest += t.amount; }
+  });
+  totalBalanceEl.textContent = formatRupee(balance);
+  monthlyIncomeEl.textContent = formatRupee(inc);
+  monthlyExpenseEl.textContent = formatRupee(exp);
+  investmentSumEl.textContent = formatRupee(invest);
+}
+
+function addTransaction(tx) { transactions.push(tx); saveData(); renderAll(); }
+function deleteTransaction(id) { transactions = transactions.filter(t => t.id !== id); saveData(); renderAll(); }
+function clearAll() { if (confirm('Clear all transactions?')) { transactions = []; saveData(); renderAll(); } }
+
+function renderAll() { renderTransactions(); computeSummaries(); updateCharts(); }
+
+txForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const fd = new FormData(txForm);
+  const tx = {
+    id: 'tx_' + Date.now(),
+    title: fd.get('title'),
+    amount: parseFloat(fd.get('amount')),
+    type: fd.get('type'),
+    category: fd.get('category'),
+    date: fd.get('date') || new Date().toISOString().slice(0, 10)
+  };
+  addTransaction(tx);
+  txForm.reset();
+});
+
+txTableBody.addEventListener('click', e => {
+  if (e.target.tagName === 'BUTTON') deleteTransaction(e.target.dataset.id);
+});
+
+clearBtn.addEventListener('click', clearAll);
+filterCategory.addEventListener('change', renderTransactions);
+searchInput.addEventListener('input', renderTransactions);
+
+let pieChart, lineChart, barChart;
+function updateCharts() {
+  const ctx1 = document.getElementById('pieChart').getContext('2d');
+  const ctx2 = document.getElementById('lineChart').getContext('2d');
+  const ctx3 = document.getElementById('barChart').getContext('2d');
+
+  const expenseByCat = {};
+  transactions.filter(t => t.type === 'expense').forEach(t => expenseByCat[t.category] = (expenseByCat[t.category] || 0) + t.amount);
+  const labels = Object.keys(expenseByCat);
+  const data = Object.values(expenseByCat);
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(ctx1, { type: 'pie', data: { labels, datasets: [{ data }] } });
+
+  if (lineChart) lineChart.destroy();
+  lineChart = new Chart(ctx2, { type: 'line', data: { labels, datasets: [{ label: 'Spending', data }] } });
+
+  if (barChart) barChart.destroy();
+  barChart = new Chart(ctx3, { type: 'bar', data: { labels, datasets: [{ label: 'Expenses', data }] } });
+}
+
+renderAll();
+```
